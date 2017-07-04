@@ -2,9 +2,10 @@
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE TypeFamilies              #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 
-import Diagrams.Prelude
+import Diagrams.Prelude hiding ((.=))
 import qualified Graphics.SVGFonts as SF
 import Diagrams.Backend.SVG
 import Diagrams.Backend.SVG.CmdLine
@@ -12,6 +13,13 @@ import Data.List (intercalate)
 import Diagrams.TwoD.Layout.Grid
 import System.Random
 import Control.Monad
+import Prelude hiding (writeFile, (.=))
+import System.Directory
+
+import Data.Aeson
+import Data.ByteString.Lazy (writeFile)
+
+import qualified Data.UUID.V4 as UUID4
 
 
 normalizeRange :: [Double] -> [Double]
@@ -28,9 +36,12 @@ spiro turnSpeeds n =
          map pathSpeed (range n))
     where
         range n = [0,(1/fromIntegral n)..1]
-        handles t = zipWith
+        handles' t = zipWith
             (\i sp -> (1/(2^i), sp * t @@ turn) ^. from r2PolarIso)
             [0..] turnSpeeds
+        handles t = map
+            (\sp -> (1, sp * t @@ turn) ^. from r2PolarIso)
+            turnSpeeds
         pathVertex t = t & handles & sum & (.+^) origin
         pathSpeed t = sqrt $ (xdot t)^2 + (ydot t)^2
         xdot t = foldr1 (+) $ zipWith
@@ -101,8 +112,104 @@ randomSpiro nhandles nmax = do
     return $ spiroWithSub turnSpeeds
 
 
-main = do
-    spiros <- replicateM 20 $ randomSpiro 3 9
+writeMeta :: [Double] -> String -> IO ()
+writeMeta turnSpeeds directory = 
+    writeFile (directory ++ "/meta.json" ) bs
+    where bs = encode $ object ["turnSpeeds" .= turnSpeeds]
+
+
+saveSpiro :: FilePath -> [Double] -> (Diagram B) -> IO ()
+saveSpiro basedir turnSpeeds diagram = do
+    writeMeta turnSpeeds basedir
+    renderSVG (basedir ++ "/diagram.svg") (dims (r2 (800, 600))) diagram
+
+
+likes1 :: [[Double]]
+likes1 = [[12, 6, 10],
+ [-2, -7, -12],
+ [-4, -9, 1],
+ [-3, 8, -3],
+ [6, 1, -14],
+ [-7, -13, 6],
+ [-7, -9, 9],
+ [-13, 14, -12],
+ [-9, 4, -13],
+ [7, 5, 2],
+ [-3, -8, -13],
+ [-11, 13, 1],
+ [11, 15, -15],
+ [-4, 12, -1],
+ [14, 1, 13],
+ [11, -1, 12],
+ [-7, -13, 2],
+ [5, 1, 9],
+ [-13, 9, -9],
+ [8, -6, 15],
+ [10, 5, 12],
+ [9, 4, -14],
+ [7, -11, -5],
+ [-5, -12, 2],
+ [-4, 5, 11],
+ [-9, 4, -13],
+ [9, 3, -3],
+ [-2, -7, 13],
+ [-6, 7, -11],
+ [11, -10, -3]]
+
+
+likes2 :: [[Double]]
+likes2 = [[-2, -15, 11],
+ [-13, -15, 15],
+ [-5, 9, 9],
+ [-4, -1, -13],
+ [7, 3, -15],
+ [4, -14, -14],
+ [10, -6, 14],
+ [-5, 9, -12],
+ [5, -7, -11],
+ [6, -3, -14],
+ [-4, -13, -7],
+ [-4, -7, -13],
+ [-5, 9, -12],
+ [-1, -7, 5],
+ [6, -12, 15],
+ [-9, -5, -9],
+ [-11, 5, 5],
+ [4, -8, 10],
+ [8, -10, -1],
+ [11, -13, 13],
+ [14, 11, 11],
+ [4, -6, 9],
+ [-4, 12, 6],
+ [15, -8, 8],
+ [5, -3, -13],
+ [-2, -2, 7],
+ [5, -7, 12],
+ [9, 8, 1],
+ [-3, -8, -13],
+ [-3, 9, 13]]
+
+
+mainPoster turnSpeedsList filename =
+    renderSVG filename (dims (r2 (800, 600))) example
+    where diagrams = map spiroWithSub turnSpeedsList
+          example = gridCat diagrams
+
+
+mainRandomFiles = 
+    replicateM 200 $ f
+    where
+        outdir = "output"
+        f = do
+           id <- UUID4.nextRandom
+           turnSpeeds <- randomSpeeds 3 15
+           let basedir = outdir ++ "/" ++ (show id)
+               diagram = spiroDiag turnSpeeds
+           createDirectoryIfMissing True basedir
+           saveSpiro basedir turnSpeeds diagram
+
+main' = do
+    spiros <- replicateM 20 $ randomSpiro 3 15
     let example = gridCat spiros
     -- let example = spiroDiag2 [-5, 7, -7]
     renderSVG "bar.svg" (dims (r2 (800, 600))) example
