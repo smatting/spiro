@@ -44,6 +44,7 @@ executable spiros-exe
                      , text
                      , bytestring
                      , uuid
+                     , split
   default-language:    Haskell2010
 
 test-suite spiros-test

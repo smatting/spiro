@@ -7,7 +7,7 @@ DIRECTORY = 'output/'
 
 app = flask.Flask(__name__,
                   static_url_path='/output/',
-                  static_folder='/home/stefan/Repos/spiro/output')
+                  static_folder='/Users/stefan/Repos/spiros/output')
 
 
 def listdir():

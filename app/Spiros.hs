@@ -5,19 +5,20 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 
+import Prelude hiding (writeFile, (.=))
+import System.Random
+import Control.Monad
+import Data.List.Split
+import Data.List (intercalate)
+import System.Directory
+import Data.ByteString.Lazy (writeFile)
+import Data.Aeson
+
 import Diagrams.Prelude hiding ((.=))
 import qualified Graphics.SVGFonts as SF
 import Diagrams.Backend.SVG
 import Diagrams.Backend.SVG.CmdLine
-import Data.List (intercalate)
 import Diagrams.TwoD.Layout.Grid
-import System.Random
-import Control.Monad
-import Prelude hiding (writeFile, (.=))
-import System.Directory
-
-import Data.Aeson
-import Data.ByteString.Lazy (writeFile)
 
 import qualified Data.UUID.V4 as UUID4
 
@@ -57,6 +58,7 @@ spiroDiag turnSpeeds =
     fromVertices vertices
               # rotate (90 @@ deg)
               # strokeLine
+              # lwL 0.03
     where (vertices, pathSpeeds) = (spiro turnSpeeds 1000)
 
 
@@ -189,15 +191,70 @@ likes2 = [[-2, -15, 11],
  [-3, -8, -13],
  [-3, 9, 13]]
 
+likesSL :: [[Double]]
+likesSL = [[3, -13, 4],
+ [6, 10, 1],
+ [-7, 11, -1],
+ [10, -1, 6],
+ [14, 5, 2],
+ [-3, 9, -15],
+ [-9, 12, -3],
+ [5, 9, 7],
+ [13, 13, 15],
+ [-11, -8, 1],
+ [3, 11, 15],
+ [-4, 10, 12],
+ [9, 7, 11],
+ [8, 10, 6],
+ [15, 11, 9],
+ [-11, -15, -3],
+ [10, -14, 2],
+ [7, -10, 3],
+ [-3, 12, -5],
+ [15, 14, 12],
+ [-10, -9, -4],
+ [-11, -7, 9],
+ [-6, -7, 13],
+ [-13, -11, -15],
+ [-5, -8, -7],
+ [4, 5, 5],
+ [11, 13, 8],
+ [-15, -13, -3],
+ [8, 10, 5],
+ [8, -6, 15],
+ [12, 5, 9],
+ [14, -11, -6],
+ [5, 9, 4],
+ [8, 8, 7],
+ [-14, -8, -8],
+ [-13, 12, 2],
+ [5, 8, 7],
+ [-15, -2, -13],
+ [-7, -3, -9],
+ [12, 4, 11],
+ [15, 13, 5],
+ [2, -1, 11]]
+
 
 mainPoster turnSpeedsList filename =
     renderSVG filename (dims (r2 (800, 600))) example
     where diagrams = map spiroWithSub turnSpeedsList
           example = gridCat diagrams
 
+renderGrid :: [[Double]] -> FilePath -> IO ()
+renderGrid lturnSpeeds outfile =
+    renderSVG outfile (dims (r2 (210 * s, 297 * s))) $ gridCat' 3 (sameBoundingRect diags)
+    where
+        diags = map spiroWithSub lturnSpeeds
+        s = 1.2 * (1 / 0.39)
+
+mainMultiPoster = 
+    zipWithM_ (\ts i -> renderGrid ts ("posters/postersl_" ++ (show i) ++ ".svg"))
+              (chunksOf 12 likesSL)
+              [0..]
 
 mainRandomFiles = 
-    replicateM 200 $ f
+    replicateM 500 $ f
     where
         outdir = "output"
         f = do
